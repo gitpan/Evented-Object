@@ -4,7 +4,7 @@
       "Mitchell Cooper <cooper@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Build version 0.4005, CPAN::Meta::Converter version 2.112150",
+   "generated_by" : "Module::Build version 0.4205",
    "license" : [
       "bsd"
    ],
@@ -16,7 +16,7 @@
    "prereqs" : {
       "configure" : {
          "requires" : {
-            "Module::Build" : "0.40"
+            "Module::Build" : "0.42"
          }
       },
       "runtime" : {
@@ -28,11 +28,16 @@
    "provides" : {
       "Evented::Object" : {
          "file" : "lib/Evented/Object.pm",
-         "version" : "3.55"
+         "version" : "5.4"
+      },
+      "Evented::Object::Collection" : {
+         "file" : "lib/Evented/Object/Collection.pm"
       },
       "Evented::Object::EventFire" : {
-         "file" : "lib/Evented/Object/EventFire.pm",
-         "version" : 0
+         "file" : "lib/Evented/Object/EventFire.pm"
+      },
+      "Evented::Object::Hax" : {
+         "file" : "lib/Evented/Object/Hax.pm"
       }
    },
    "release_status" : "stable",
@@ -44,5 +49,5 @@
          "url" : "https://github.com/cooper/evented-object"
       }
    },
-   "version" : "3.55"
+   "version" : "5.4"
 }

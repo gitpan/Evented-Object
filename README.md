@@ -1,13 +1,16 @@
 # Evented::Object
 
-**I doubt your objects have ever been this evented.** This concept is so incredible that we're using a noun
+**I honestly doubt your objects have ever been this evented in your entire life.**
+This concept is so incredible that we're using a noun
 as a verb without being arrested by the grammar police.  
   
 Evented::Object started as a basic class for registering event handlers and firing events. After many improvements
 throughout several projects, Evented::Object has become far more complex and quite featureful.  
   
 Evented::Object supplies an (obviously objective) interface to store and manage callbacks for events, fire events
-upon objects, and more. It provides several methods for convenience and simplicity.
+upon objects, and more. It provides several methods for convenience and simplicity.  
+  
+Evented::Object is now available on [CPAN](http://search.cpan.org/perldoc?Evented::Object).
 
 ## Introduction
 
@@ -20,11 +23,11 @@ To clear some things up...
   
 'Evented::Object' refers to the Evented::Object package, but 'evented object' refers to an object
 which is a member of the Evented::Object class or a class which inherits from the Evented::Object class.
-'Event fire object' refers to an object representing an event fire.  
+'Fire object' refers to an object representing an event fire.  
 
 * __Evented::Object__: the class that provides methods for managing events.
-* __Evented object__: an object that uses Evented::Object for event management.
-* __Event fire object__: an object that represents an event fire.
+* __Evented object__: `$eo` - an object that uses Evented::Object for event management.
+* __Fire object__: `$fire` - an object that represents an event fire.
 * __Listener object__: another evented object that receives event notifications.
 
 Evented::Object and its core packages are prefixed with `Evented::Object`.  
@@ -48,11 +51,11 @@ Whereas many event systems involve globally unique event names, Evented::Object 
 object. The event callbacks, information, and other data are stored secretly within the object itself. This is quite
 comparable to the JavaScript event systems often found in browsers.
 
-### Event fire objects
+### Fire objects
   
-Another important concept of Evented::Object is the event fire object. It provides methods for fetching information relating
+Another important concept of Evented::Object is the fire object. It provides methods for fetching information relating
 to the event being fired, callback being called, and more. Additionally, it provides an interface for modifying the
-evented object and modifying future event callbacks.
+evented object and modifying future event callbacks. Fire objects belong to the Evented::Object::EventFire class.
 
 ### Listener objects
 
@@ -72,7 +75,7 @@ The cow holds a weak reference to the farm, so you do not need to worry about de
 your listener object must also be referred to in another location in order for this to work. I doubt that will be a problem,
 though.
 
-#### Priorities and listeners::
+#### Priorities and listeners
 
 Evented::Object is rather genius when it comes to callback priorities. With object listeners, it is as though
 the callbacks belong to the object being listened to. Referring to the above example, if you attach a callback
@@ -80,17 +83,49 @@ on the farm object with priority 1, it will be called before your callback with 
 
 #### Fire objects and listeners
 
-When an event is fired on an object, the same event fire object is used for callbacks
+When an event is fired on an object, the same fire object is used for callbacks
 belonging to both the evented object and its listening objects. Therefore, callback names
 must be unique not only to the listener object but to the object being listened on as well.
   
-You should also note the values of the event fire object:
+You should also note the values of the fire object:
 
-* __$event->event_name__: the name of the event from the perspective of the listener; i.e. `cow.moo` (NOT `moo`)
-* __$event->object__: the object being listened to; i.e. `$cow` (NOT `$farm`)
+* __$fire->event_name__: the name of the event from the perspective of the listener; i.e. `cow.moo` (NOT `moo`)
+* __$fire->object__: the object being listened to; i.e. `$cow` (NOT `$farm`)
 
 This also means that stopping the event from a listener object will cancel all remaining
 callbacks, including those belonging to the evented object.
+
+### Registering callbacks to classes
+
+Evented::Object 3.9 adds the ability to register event callbacks to a subclass of Evented::Object.
+The methods `->register_callback()`, `->delete_event()`, `->delete_callback`, etc. can be called in
+the form of `MyClass->method()`. Evented::Object will store these callbacks in a special hash hidden
+in the package's symbol table.  
+  
+Any object of this class will borrow these callbacks from the class. They will be incorporated into the callback collection as though they were registered directly on the object.
+  
+Note: Events cannot be fired on a class.
+
+#### Prioritizing
+
+When firing an event, any callbacks on the class will sorted by priority just as if they were registered on the object. Whether registered on the class or the object, a callback with a
+higher priority will be called before one of a lower priority.
+
+#### Subclassing
+
+If an evented object is blessed to a subclass of a class with callbacks registered to it,
+the object will NOT inherit the callbacks associated with the parent class. Callbacks registered
+to classes ONLY apply to objects directly blessed to the class.
+
+### Class monitors
+
+Evented::Object 4.0 introduces a "class monitor" feature. This allows an evented object to be registered
+as a "monitor" of a specific class/package. Any event callbacks that are added from that class to any
+evented object of any type will trigger an event on the monitor object - in other words, the `caller` of
+`->register_callback()`, regardless of the object.
+  
+An example scenario of when this might be useful is an evented object for debugging all events being
+registered by a certain package. It would log all of them, making it easier to find a problem.
 
 ## History
 
@@ -113,16 +148,18 @@ This is a list of classes designed exclusively upon Evented::Object.
 * [__Evented::Database__](https://github.com/cooper/evented-database) - a package providing a database mechanism built upon Evented::Configuration.
 * [__Evented::Query__](https://github.com/cooper/evented-query) - an evented database interface wrapping around DBI.
 * [__Evented::Socket__](https://github.com/cooper/evented-socket) - an event-driven TCP socket protocol for networked programming.
+* [__Evented::API::Engine__](https://github.com/cooper/evented-api-engine) - successor to the [API Engine](https://github.com/cooper/api-engine) with event-driven management of modules.
+* [__Evented::IRC__](https://github.com/cooper/evented-irc) - successor to [libirc](https://github.com/cooper/libirc-classic) with an improved event system around Evented::Object.
 
 This is a list of classes and frameworks which make major use of Evented::Object.
 
 * [__Net::Async::Omegle__](https://github.com/cooper/net-async-omegle) - a complete, evented, and objective Perl interface to Omegle.com.
-* [__libirc__](https://github.com/cooper/libirc) - an evented and objective Internet Relay Chat framework.
-* [__libuic__](https://github.com/cooper/libirc) - an evented and objective Universal Internet Chat framework.
+* [__libirc__](https://github.com/cooper/libirc-classic) - an evented and objective Internet Relay Chat framework.
+* [__libuic__](https://github.com/cooper/libuic) - an evented and objective Universal Internet Chat framework.
 
 ### Event-driven applications powered by Evented::Object
 
-* [__kedler__](https://github.com/cooper/kedler) - an event-driven, modular, and excessively flexible IRC daemon written in Perl.
+* [__juno-ircd__](https://github.com/cooper/vulpia) - an event-driven, modular, and excessively flexible IRC daemon written in Perl.
 * [__uicd__](https://github.com/cooper/uicd) - daemon of the Univseral Internet Chat protocol based upon the libuic UIC library.
 * [__simple-relay__](https://github.com/cooper/simple-relay) - a very basic IRC bot powered by libirc.
 * [__foxy-java__](https://github.com/cooper/foxy-java) - a poorly named but highly extensible IRC bot powered by libirc.
@@ -133,11 +170,11 @@ This is a list of classes and frameworks which make major use of Evented::Object
 
 ## Author
 
-[Mitchell Cooper](http://github.com/cooper), "cooper" <mitchell@notroll.net>  
-Copyright © 2011-2013. See LICENSE file.  
+[Mitchell Cooper](http://github.com/cooper), "cooper" <cooper@cpan.org>  
+Copyright &copy; 2011-2013. See LICENSE file.  
   
-* __IRC channel__: [irc.mac-mini.org #k](irc://irc.mac-mini.org/#k)
-* __Email__: <mitchell@notroll.net>
+* __IRC channel__: [irc.notroll.net #k](irc://irc.mac-mini.org/#k)
+* __Email__: <cooper@cpan.org>
 
 Comments, complaints, and recommendations are accepted. IRC is my preferred communication medium.
 
@@ -159,37 +196,43 @@ versions, the evented object was *always* the first argument of *all* events,
 until Evented::Object 0.6 added the ability to pass a parameter to `->attach_event()` that
 would tell Evented::Object to omit the object from the callback's argument list.  
   
-### Introduction of event fire objects 1.8+
+### Introduction of fire objects 1.8+
   
-The Evented::Object series 1.8+ passes a hash reference `$event` instead of the
-Evented::Object as the first argument. `$event` contains information that was formerly held within the object
+The Evented::Object series 1.8+ passes a hash reference `$fire` instead of the
+Evented::Object as the first argument. `$fire` contains information that was formerly held within the object
 itself, such as `event_info`, `event_return`, and `event_data`. These are now accessible
-through this new hash reference as `$event->{info}`, `$event->{return}`, `$event->{data}`,
-etc. The object is now accessible with `$event->{object}`. (this has since been changed; see below.)  
+through this new hash reference as `$fire->{info}`, `$fire->{return}`, `$fire->{data}`,
+etc. The object is now accessible with `$fire->{object}`. (this has since been changed; see below.)  
   
 Events are now stored in the `eventedObject.events` hash key instead of `events`, as
 `events` was a tad bit too broad and could conflict with other libraries.  
   
 In addition to these changes, the `attach_event()` method was deprecated in version 1.8
-in favor of the new `register_event()`; however, it will remain in Evented::Object until at
+in favor of the new `register_callback()`; however, it will remain in Evented::Object until at
 least the late 2.* series.  
   
 ### Alias changes 2.0+
 
-Version 2.0 breaks things even more because `->on()` is now an alias for `->register_event()`
+Version 2.0 breaks things even more because `->on()` is now an alias for `->register_callback()`
 rather than the former deprecated `->attach_event()`.
   
 ### Introduction of event methods 2.2+
 
 Version 2.2+ introduces a new class, Evented::Object::EventFire, which provides several methods for
-event fire objects. These methods such as `$event->return` and `$event->object` replace the former hash keys
-`$event->{return}`, `$event->{object}`, etc. The former hash interface is no longer supported and will lead to error.
+fire objects. These methods such as `$fire->return` and `$fire->object` replace the former hash keys
+`$fire->{return}`, `$fire->{object}`, etc. The former hash interface is no longer supported and will lead to error.
 
 ### Removal of ->attach_event() 2.9+
 
 Version 2.9 removes the long-deprecated `->attach_event()` method in favor of the more
-flexible `->register_event()`. This will break compatibility with any package still making
+flexible `->register_callback()`. This will break compatibility with any package still making
 use of `->attach_event()`.
+
+### Rename to Evented::Object 3.54+
+
+In order to correspond with other 'Evented' packages, EventedObject was renamed to
+Evented::Object. All packages making use of EventedObject will need to be modified to use
+Evented::Object instead. This change was made pre-CPAN.
 
 ## Evented object methods
 
@@ -204,14 +247,14 @@ to call `SUPER::new()`, as `Evented::Object->new()` returns nothing more than an
 my $eo = Evented::Object->new();
 ```
 
-### $eo->register_event($event_name => \\&callback, %options)
+### $eo->register_callback($event_name => \\&callback, %options)
 
 Intended to be a replacement for the former `->attach_event()`.
 Attaches an event callback the object. When the specified event is fired, each of the callbacks registered using this method
 will be called by descending priority order (higher priority numbers are called first.)
 
 ```perl
-$eo->register_event(myEvent => sub {
+$eo->register_callback(myEvent => sub {
     ...
 }, name => 'some.callback', priority => 200);
 ```
@@ -222,64 +265,73 @@ $eo->register_event(myEvent => sub {
 
 #### %options - event handler options
 
-**All of these options are optional**, but the use of a callback name is **highly recommended**.
+All of these options are **optional**, but the use of a callback name is **highly recommended**.
 
 * __name__: the name of the callback being registered. must be unique to this particular event.
 * __priority__: a numerical priority of the callback.
-* __data__: any data that will be stored as `$event->event_data` as the callback is fired.
-* __no_fire_obj__: if true, the event fire object will not be prepended to the argument list.
+* __before__: the name of a callback to precede.
+* __after__: the name of a callback to succeed.
+* __data__: any data that will be stored as `$fire->event_data` as the callback is fired.
+* __no_fire_obj__: if true, the fire object will not be prepended to the argument list.
 * __with_evented_obj__: if true, the evented object will prepended to the argument list.
 * __no_obj__: *Deprecated*. Use `no_fire_obj` instead.
 * __eo_obj__: *Deprecated*. Use `with_evented_obj` instead.
 * __with_obj__: *Deprecated*. Use `with_evented_obj` instead.
 
-Note: the order of objects will always be `$eo`, `$event`, `@args`, regardless of omissions.  
-By default, the argument list is `$event`, `@args`.
+Note: the order of objects will always be `$eo`, `$fire`, `@args`, regardless of omissions.  
+By default, the argument list is `$fire`, `@args`.
 
+<!---
 #### Differences from ->attach_event()
 
 Note: `->attach_event()` by default fires the callback with the evented object as its first argument unless told not to do so.
-`->register_event()`, however, functions in the opposite sense and *never* passes the evented object as the first argument unless the `with_evented_obj` option is passed.  
+`->register_callback()`, however, functions in the opposite sense and *never* passes the evented object as the first argument unless the `with_evented_obj` option is passed.  
   
-In the 1.* series and above, the event fire object is passed as the first argument unless the `no_fire_obj` option is passed. The 
-evented object itself is now accessible from `$event->object`.  
+In the 1.* series and above, the fire object is passed as the first argument unless the `no_fire_obj` option is passed. The 
+evented object itself is now accessible from `$fire->object`. 
+--> 
 
-### $eo->register_events(@events)
+### $eo->register_callbacks(@events)
 
 Registers several events at once. The arguments should be a list of hash references.
-These references take the same options as `->register_event()`. Returns a list of return
+These references take the same options as `->register_callback()`. Returns a list of return
 values in the order that the events were specified.
 
 ```perl
-$eo->register_events(
+$eo->register_callbacks(
     { myEvent => \&my_event_1, name => 'cb.1', priority => 200 },
     { myEvent => \&my_event_2, name => 'cb.2', priority => 100 }
 );
 ```
 
-* __events__: an array of hash references to pass to `->register_event()`.
+* __events__: an array of hash references to pass to `->register_callback()`.
 
-### $eo->delete_event($event_name => $callback_name)
+### $eo->delete_event($event_name)
 
-Deletes an event callback from the object with the given callback name.  
-If no callback name is specified, deletes all callbacks of this event.  
-  
+Deletes all callbacks registered for the supplied event.  
 Returns a true value if any events were deleted, false otherwise.
 
 ```perl
-# delete a single callback.
-$eo->delete_event(myEvent => 'my.callback');
-
-# delete all callbacks.
 $eo->delete_event('myEvent');
+````
+
+* __event_name__: the name of the event.
+
+### $eo->delete_callback($event_name => $callback_name)
+
+Deletes an event callback from the object with the given callback name.  
+Returns a true value if any events were deleted, false otherwise.
+
+```perl
+$eo->delete_callback(myEvent => 'my.callback');
 ```
 
 * __event_name__: the name of the event.
-* __callback_name__: *optional*, the name of the callback being removed.
+* __callback_name__: the name of the callback.
 
 ### $eo->fire_event($event_name => @arguments)
 
-Fires the specified event, calling each callback that was registered with `->register_event()` in descending order of
+Fires the specified event, calling each callback that was registered with `->register_callback()` in descending order of
 their priorities.
 
 ```perl
@@ -317,10 +369,9 @@ $cow->delete_listener($farm, 'cow');
 * __other_eo__: the evented object that will listen.
 * __prefix__: a string that event names will be prefixed with on the listener.
 
-
 ### $eo->on($event_name => \\&callback, %options)
 
-Alias for `->register_event()`.
+Alias for `->register_callback()`.
 
 ### $eo->fire($event_name => @arguments)
 
@@ -331,9 +382,19 @@ Alias for `->fire_event()`.
 **Deprecated**. Alias for `->delete_event()`.  
 Do not use this. It is likely to removed in the near future.
 
+### $eo->register_event(...)
+
+**Deprecated**. Alias for `->register_callback()`.  
+Do not use this. It is likely to removed in the near future.
+
+### $eo->register_events(...)
+
+**Deprecated**. Alias for `->register_callbacks()`.  
+Do not use this. It is likely to removed in the near future.
+
 ### $eo->attach_event(...)
 
-**Removed** in version 2.9. Use `->register_event()` instead.
+**Removed** in version 2.9. Use `->register_callback()` instead.
 
 ## Evented::Object procedural functions
 
@@ -350,7 +411,7 @@ It follows priorities throughout
 all of the events and all of the objects, so it is ideal for firing similar or identical
 events on multiple objects.  
   
-The same event fire object is used throughout this entire routine. This means that
+The same fire object is used throughout this entire routine. This means that
 callback names must unique among all of these objects and events. It also means that
 stopping an event from any callback will cancel all remaining callbacks, regardless to
 which event or which object they belong.  
@@ -368,143 +429,209 @@ Evented::Object::fire_events_together(
 
 * __events__: an array of events in the form of `[$eo, event_name => @arguments]`.
 
-## Event fire object methods
+### safe_fire($eo, $event_name, @args)
 
-Event fire objects are passed to all callbacks of an Evented::Object. Event fire objects
+Safely fires an event. In other words, if the `$eo` is not an evented object or is not
+blessed at all, the call will be ignored. This eliminates the need to use `blessed()` and
+`->isa()` on a value for testing whether it is an evented object.
+
+```perl
+Evented::Object::safe_fire($eo, myEvent => 'my argument');
+```
+
+* __eo__: the evented object.
+* __event_name__: the name of the event.
+* __args__: the arguments for the event fire.
+
+### add_class_monitor($pkg, $some_eo)
+
+Registers an evented object as the class monitor for a specific package. See the
+section above for more details on class monitors and their purpose.
+
+```perl
+my $some_eo  = Evented::Object->new;
+my $other_eo = Evented::Object->new;
+
+$some_eo->on('monitor:register_callback', sub {
+    my ($event, $eo, $event_name, $cb) = @_;
+    # $eo         == $other_eo
+    # $event_name == "blah"
+    # $cb         == callback hash from ->register_callback()
+    say "Registered $$cb{name} to $eo for $event_name"; 
+});
+
+Evented::Object::add_class_monitor('Some::Class', $some_eo);
+
+package Some::Class;
+$other_eo->on(blah => sub{}); # will trigger the callback above
+
+```
+
+* __pkg__: a package whose event activity you wish to monitor.
+* __some_eo__: some arbitrary event object that will respond to that activity.
+
+### delete_class_monitor($pkg, $some_eo)
+
+Removes an evented object from its current position as a monitor for a specific package.
+See the section above for more details on class monitors and their purpose.
+
+```perl
+Evented::Object::delete_class_monitor('Some::Class', $some_eo)
+```
+
+* __pkg__: a package whose event activity you're monitoring.
+* __some_eo__: some arbitrary event object that is responding to that activity.
+
+### export_code($package, $sub_name, $code)
+
+Exports a code reference to the symbol table of the specified package name.
+
+```perl
+my $code = sub { say 'Hello world!' };
+Evented::Object::export_code('MyPackage', 'hello', $code);
+```
+
+* __package__: name of package.
+* __sub_name__: name of desired symbol.
+* __code__: code reference to export.
+
+## Fire object methods
+
+Fire objects are passed to all callbacks of an Evented::Object. Fire objects
 contain information about the event itself, the callback, the caller of the event, event
 data, and more.  
   
-Event fire objects replace the former values stored within the Evented::Object itself. This new method
+Fire objects replace the former values stored within the Evented::Object itself. This new method
 promotes asynchronous event firing.  
   
-Event fire objects are specific to each firing. If you fire the same event twice in a row, the event
+Fire objects are specific to each firing. If you fire the same event twice in a row, the event
 object passed to the callbacks the first time will not be the same as the second time. Therefore,
-all modifications made by the event fire object's methods apply only to the callbacks remaining in this
-particular fire. For example, `$event->cancel($callback)` will only cancel the supplied callback
+all modifications made by the fire object's methods apply only to the callbacks remaining in this
+particular fire. For example, `$fire->cancel($callback)` will only cancel the supplied callback
 once. The next time the event is fired, that cancelled callback will be called regardless.
 
-### $event->object
+### $fire->object
 
 Returns the evented object.
 
 ```perl
-$event->object->delete_event('myEvent');
+$fire->object->delete_event('myEvent');
 ```
 
-### $event->caller
+### $fire->caller
 
 Returns the value of `caller(1)` from within the `->fire()` method. This allows you to determine
 from where the event was fired.
 
 ```perl
-my $name   = $event->event_name;
-my @caller = $event->caller;
+my $name   = $fire->event_name;
+my @caller = $fire->caller;
 say "Package $caller[0] line $caller[2] called event $name";
 ```
 
-### $event->stop
+### $fire->stop
 
 Cancels all remaining callbacks. This stops the rest of the event firing. After a callback
-calls `$event->stop`, it is stored as `$event->stopper`.
+calls `$fire->stop`, it is stored as `$fire->stopper`.
 
 ```perl
 # ignore messages from trolls
 if ($user eq 'noah') {
     # user is a troll.
     # stop further callbacks.
-    return $event->stop;
+    return $fire->stop;
 }
 ```
 
-### $event->stopper
+### $fire->stopper
 
-Returns the callback which called `$event->stop`.
+Returns the callback which called `$fire->stop`.
 
 ```perl
-if ($event->stopper) {
-    say 'Event was stopped by '.$event->stopper;
+if ($fire->stopper) {
+    say 'Fire was stopped by '.$fire->stopper;
 }
 ```
 
-### $event->called($callback)
+### $fire->called($callback)
 
 If no argument is supplied, returns the number of callbacks called so far, including the current one.
 If a callback argument is supplied, returns whether that particular callback has been called.
 
 ```perl
-say $event->called, 'callbacks have been called so far.';
+say $fire->called, 'callbacks have been called so far.';
 ```
 
 ```perl
-if ($event->called('some.callback')) {
+if ($fire->called('some.callback')) {
     say 'some.callback has been called already.';
 }
 ```
 
 * __callback__: *optional*, the callback being checked.
 
-### $event->pending($callback)
+### $fire->pending($callback)
 
 If no argument is supplied, returns the number of callbacks pending to be called, excluding the current one.
 If a callback argument is supplied, returns whether that particular callback is pending for being called.
 
 ```perl
-say $event->pending, 'callbacks are left.';
+say $fire->pending, 'callbacks are left.';
 ```
 
 ```perl
-if ($event->pending('some.callback')) {
+if ($fire->pending('some.callback')) {
     say 'some.callback will be called soon.';
 }
 ```
 
 * __callback__: *optional*, the callback being checked.
 
-### $event->cancel($callback)
+### $fire->cancel($callback)
 
 Cancels the supplied callback once.
 
 ```perl
 if ($user eq 'noah') {
     # we don't love noah!
-    $event->cancel('send.hearts');
+    $fire->cancel('send.hearts');
 }
 ```
 
 * __callback__: the callback to be cancelled.
 
-### $event->return_of($callback)
+### $fire->return_of($callback)
 
 Returns the return value of the supplied callback.
 
 ```perl
-if ($event->return('my.callback')) {
+if ($fire->return_of('my.callback')) {
     say 'my.callback returned a true value';
 }
 ```
 
 * __callback__: the desired callback.
 
-### $event->last
+### $fire->last
 
 Returns the most recent previous callback called.  
 This is also useful for determining which callback was the last to be called.
 
 ```perl
-say $event->last, ' was called before this one.';
+say $fire->last, ' was called before this one.';
 ```
 
 ```perl
-my $event = $eo->fire_event('myEvent');
-say $event->last, ' was the last callback called.';
+my $fire = $eo->fire_event('myEvent');
+say $fire->last, ' was the last callback called.';
 ```
 
-### $event->last_return
+### $fire->last_return
 
 Returns the last callback's return value.
 
 ```perl
-if ($event->last_return) {
+if ($fire->last_return) {
     say 'the callback before this one returned a true value.';
 }
 else {
@@ -512,42 +639,46 @@ else {
 }
 ```
 
-### $event->event_name
+### $fire->event_name
 
 Returns the name of the event.
 
 ```perl
-say 'the event being fired is ', $event->event_name;
+say 'the event being fired is ', $fire->event_name;
 ```
 
-### $event->callback_name
+### $fire->callback_name
 
 Returns the name of the current callback.
 
 ```perl
-say 'the current callback being called is ', $event->callback_name;
+say 'the current callback being called is ', $fire->callback_name;
 ```
 
-### $event->callback_priority
+### $fire->callback_priority
 
 Returns the priority of the current callback.
 
 ```perl
-say 'the priority of the current callback is ', $event->callback_priority;
+say 'the priority of the current callback is ', $fire->callback_priority;
 ```
 
-### $event->callback_data
+### $fire->callback_data
 
 Returns the data supplied to the callback when it was registered, if any.
 
 ```perl
-say 'my data is ', $event->callback_data;
+say 'my data is ', $fire->callback_data;
 ```
+
+### $fire->eo
+
+Alias for `->object`.
 
 ## Example
 
 This example demonstrates basic Evented::Object subclasses,
-priorities of event callbacks, as well as event fire objects and their methods.
+priorities of event callbacks, as well as fire objects and their methods.
 
 ```perl
 package Person;
@@ -596,7 +727,7 @@ Add an event callback that assumes Jake is under 21.
 
 ```perl
 $jake->on(birthday => sub {
-    my ($event, $new_age) = @_;
+    my ($fire, $new_age) = @_;
 
     say 'not quite 21 yet...';
 
@@ -607,11 +738,11 @@ Add an event callback that checks if Jake is 21 and cancels the above callback i
 
 ```perl
 $jake->on(birthday => sub {
-    my ($event, $new_age) =  @_;
+    my ($fire, $new_age) =  @_;
 
     if ($new_age == 21) {
         say 'time to get drunk!';
-        $event->cancel('21-soon');
+        $fire->cancel('21-soon');
     }
 
 }, name => 'finally-21', priority => 1);

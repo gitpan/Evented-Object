@@ -14,11 +14,6 @@
    },
    "name" : "Evented-Object",
    "prereqs" : {
-      "configure" : {
-         "requires" : {
-            "Module::Build" : "0.42"
-         }
-      },
       "runtime" : {
          "requires" : {
             "perl" : "5.010"
@@ -28,19 +23,19 @@
    "provides" : {
       "Evented::Object" : {
          "file" : "lib/Evented/Object.pm",
-         "version" : "5.43"
+         "version" : "5.44"
       },
       "Evented::Object::Collection" : {
          "file" : "lib/Evented/Object/Collection.pm",
-         "version" : "5.43"
+         "version" : "5.431"
       },
       "Evented::Object::EventFire" : {
          "file" : "lib/Evented/Object/EventFire.pm",
-         "version" : "5.43"
+         "version" : "5.431"
       },
       "Evented::Object::Hax" : {
          "file" : "lib/Evented/Object/Hax.pm",
-         "version" : "5.43"
+         "version" : "5.431"
       }
    },
    "release_status" : "stable",
@@ -52,5 +47,5 @@
          "url" : "https://github.com/cooper/evented-object"
       }
    },
-   "version" : "5.43"
+   "version" : "5.44"
 }

@@ -43,7 +43,7 @@ SYNOPSIS
  
      }, name => '21-soon');
  
-     # Add an event callback that checks if Jake is 21 and cancels the above callback if he is.
+     # Add an event callback that checks if Jake is 21 and cancels the above callback if so.
      $jake->on(birthday => sub {
          my ($fire, $new_age) =  @_;
  
@@ -161,12 +161,14 @@ DESCRIPTION
     farm's event for mooing is `cow.moo'.
 
     Potential looping references
+
     The cow holds a weak reference to the farm, so you do not need to worry
     about deleting it later. This, however, means that your listener object
     must also be referred to in another location in order for this to work.
     I doubt that will be a problem, though.
 
     Priorities and listeners
+
     Evented::Object is rather genius when it comes to callback priorities.
     With object listeners, it is as though the callbacks belong to the
     object being listened to. Referring to the above example, if you attach
@@ -174,6 +176,7 @@ DESCRIPTION
     your callback with priority 0 on the cow object.
 
     Fire objects and listeners
+
     When an event is fired on an object, the same fire object is used for
     callbacks belonging to both the evented object and its listening
     objects. Therefore, callback names must be unique not only to the
@@ -205,12 +208,14 @@ DESCRIPTION
     Note: Events cannot be fired on a class.
 
     Prioritizing
+
     When firing an event, any callbacks on the class will sorted by priority
     just as if they were registered on the object. Whether registered on the
     class or the object, a callback with a higher priority will be called
     before one of a lower priority.
 
     Subclassing
+
     If an evented object is blessed to a subclass of a class with callbacks
     registered to it, the object will NOT inherit the callbacks associated
     with the parent class. Callbacks registered to classes ONLY apply to
@@ -229,10 +234,10 @@ DESCRIPTION
     log all of them, making it easier to find a problem.
 
   Collections
-    Sometimes it is useful to prepare an event fire before actually calling
-    it. The group of callbacks that are about to be called are represented
-    by a collection object. Collections are returned by the 'prepare'
-    methods.
+    Evented::Object 5.0 introduces callback collections. Sometimes it is
+    useful to prepare an event fire before actually calling it. The group of
+    callbacks that are about to be called are represented by a collection
+    object. Collections are returned by the 'prepare' methods.
 
     Collections are especially useful for firing events with special
     options. This usually looks something like:
@@ -352,8 +357,9 @@ Evented object methods
 
     *   after: the name of a callback to succeed.
 
-    *   data: any data that will be stored as `$fire->event_data' as the
-        callback is fired.
+    *   data: any data that will be stored as `$fire->callback_data' as the
+        callback is fired. If `data' is a hash reference, its values can be
+        fetched conveniently with `$fire->callback_data('key')'.
 
     *   with_eo: if true, the evented object will prepended to the argument
         list.
@@ -506,6 +512,39 @@ Preparation methods
         [ some_other => @other_arg ]
      );
 
+Class monitors
+  $eo->monitor_events($pkg)
+    Registers an evented object as the class monitor for a specific package.
+    See the section above for more details on class monitors and their
+    purpose.
+
+     my $some_eo  = Evented::Object->new;
+     my $other_eo = Evented::Object->new;
+ 
+     $some_eo->on('monitor:register_callback', sub {
+         my ($event, $eo, $event_name, $cb) = @_;
+         # $eo         == $other_eo
+         # $event_name == "blah"
+         # $cb         == callback hash from ->register_callback()
+         say "Registered $$cb{name} to $eo for $event_name"; 
+     });
+ 
+     $some_eo->monitor_events('Some::Class');
+ 
+     package Some::Class;
+     $other_eo->on(blah => sub{}); # will trigger the callback above
+
+    *   pkg: a package whose event activity you wish to monitor.
+
+  $eo->stop_monitoring($pkg)
+    Removes an evented object from its current position as a monitor for a
+    specific package. See the section above for more details on class
+    monitors and their purpose.
+
+     $some_eo->stop_monitoring('Some::Class');
+
+    *   pkg: a package whose event activity you're monitoring.
+
 Procedural functions
     The Evented::Object package provides some functions for use. These
     functions typically are associated with more than one evented object or
@@ -581,44 +620,6 @@ Procedural functions
 
     *   args: the arguments for the event fire.
 
-  add_class_monitor($pkg, $some_eo)
-    Registers an evented object as the class monitor for a specific package.
-    See the section above for more details on class monitors and their
-    purpose.
-
-     my $some_eo  = Evented::Object->new;
-     my $other_eo = Evented::Object->new;
- 
-     $some_eo->on('monitor:register_callback', sub {
-         my ($event, $eo, $event_name, $cb) = @_;
-         # $eo         == $other_eo
-         # $event_name == "blah"
-         # $cb         == callback hash from ->register_callback()
-         say "Registered $$cb{name} to $eo for $event_name"; 
-     });
- 
-     Evented::Object::add_class_monitor('Some::Class', $some_eo);
- 
-     package Some::Class;
-     $other_eo->on(blah => sub{}); # will trigger the callback above
-
-    *   pkg: a package whose event activity you wish to monitor.
-
-    *   some_eo: some arbitrary event object that will respond to that
-        activity.
-
-  delete_class_monitor($pkg, $some_eo)
-    Removes an evented object from its current position as a monitor for a
-    specific package. See the section above for more details on class
-    monitors and their purpose.
-
-     Evented::Object::delete_class_monitor('Some::Class', $some_eo)
-
-    *   pkg: a package whose event activity you're monitoring.
-
-    *   some_eo: some arbitrary event object that is responding to that
-        activity.
-
 Collection methods
     Collections are returned by the 'prepare' methods. They represent a
     group of callbacks that are about to be fired.
@@ -655,7 +656,13 @@ Collection methods
         dangerous if any of the callbacks expected a previous callback to be
         done when it actually failed.
 
-  $col->sort_callbacks
+    *   data: *requires value*, a scalar value that can be fetched by
+        `$fire->data' from within the callbacks. Good for data that might be
+        useful sometimes but not frequently enough to deserve a spot in the
+        argument list. If `data' is a hash reference, its values can be
+        fetched conveniently with `$fire->data('key')'.
+
+  $col->sort
     Sorts the callbacks according to `priority', `before', and `after'
     options.
 

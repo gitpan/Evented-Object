@@ -32,7 +32,7 @@ use Evented::Object::Collection;
 
 # always using 2 decimals now for CPAN releases.
 # change other packages too.
-our $VERSION = '5.44';
+our $VERSION = '5.47';
 
 # create a new evented object.
 sub new {
@@ -51,13 +51,12 @@ sub new {
 sub register_callback {
     my ($eo, $event_name, $code, %opts) = @_;
     
-    # no name was provided, so we shall construct
-    # one using the power of pure hackery.
+    # no name was provided, so we shall construct one using pure hackery.
     # this is one of the most criminal things I've ever done.
     my @caller = caller;
     if (!defined $opts{name}) {
-        state $c    = -1; $c++; 
-        $opts{name} = "$caller[0]($caller[2],$c)";
+        state $c    = -1; $c++;
+        $opts{name} = "$event_name:$caller[0]($caller[2],$c)";
     }
     
     # determine the event store.
@@ -174,7 +173,9 @@ sub delete_all_events {
     
     # just clear it to be safe.
     %$event_store = ();
-
+    delete $eo->{$events};
+    delete $eo->{$props};
+    
     return $amount;
 }
  
@@ -214,16 +215,19 @@ sub prepare_together {
         # okay, it's an array ref of
         # [ $eo (optional), $event_name => @args ]
         ref $set eq 'ARRAY' or next;
-        my ($eo_maybe, $event_name, @args) = @$set;
+        my ($eo_maybe, $event_name, @args);
 
-        # determine the object.
+        # was an object specified?
+        $eo_maybe = shift @$set;
         if (blessed $eo_maybe && $eo_maybe->isa(__PACKAGE__)) {
             $eo = $eo_maybe;
+            ($event_name, @args) = @$set;
         }
+        
+        # no object; fall back to $obj.
         else {
-            $eo   = $obj or return;
-            @args = ($event_name, @args);
-            $event_name = $eo_maybe;
+            $eo = $obj or return;
+            ($event_name, @args) = ($eo_maybe, @$set);
         }
         
         # add to the collection.
@@ -246,7 +250,7 @@ sub fire_event {
 
 # fire multiple events on multiple objects as a single event.
 sub fire_events_together {
-    prepare_together(@_)->fire;
+    prepare_together(@_)->fire(caller => [caller 1]);
 }
 
 # fire an event; then delete it.
@@ -271,8 +275,7 @@ sub add_listener {
     my ($eo, $obj, $prefix) = @_;
     
     # find listeners list.
-    $eo->{$props}{listeners} ||= [];
-    my $listeners = $eo->{$props}{listeners};
+    my $listeners = $eo->{$props}{listeners} ||= [];
     
     # store this listener.
     push @$listeners, [$prefix, $obj];
@@ -386,36 +389,31 @@ sub _get_callbacks {
     my ($eo, $event_name, @args) = @_;
     my @collection;
     
-    # if there are any listening objects, call its callbacks of this priority.
-    if ($eo->{$props}{listeners}) {
+    # start out with two stores: the object and the package.
+    my @stores = (
+        [ $event_name => $eo->{$events}             ],
+        [ $event_name => _event_store(blessed $eo)  ]
+    );
+
+
+    # if there are any listening objects, add those stores.
+    if (my $listeners = $eo->{$props}{listeners}) {
         my @delete;
-        my $listeners = $eo->{$props}{listeners};
         
         LISTENER: foreach my $i (0 .. $#$listeners) {
             my $l = $listeners->[$i] or next;
-            my ($prefix, $obj) = @$l;
+            my ($prefix, $lis) = @$l;
             my $listener_event_name = $prefix.q(.).$event_name;
             
             # object has been deallocated by garbage disposal,
             # so we can delete this listener.
-            if (!$obj) {
+            if (!$lis) {
                 push @delete, $i;
                 next LISTENER;
             }
-            
-            # add the callbacks from this priority.
-            foreach my $priority (keys %{ $obj->{$events}{$listener_event_name} }) {
 
-                # create a group reference.
-                my $group = [ $eo, $listener_event_name, \@args];
-                weaken($group->[0]);
-                
-                # add each callback.
-                foreach my $cb (@{ $obj->{$events}{$listener_event_name}{$priority} }) {
-                    push @collection, [ $priority, $group, $cb ];
-                }
-                
-            }
+            
+            push @stores, [ $listener_event_name => $lis->{$events} ];
             
         }
         
@@ -424,37 +422,19 @@ sub _get_callbacks {
        
     }
 
-    # add the local callbacks from this priority.
-    if ($eo->{$events}{$event_name}) {
-        foreach my $priority (keys %{ $eo->{$events}{$event_name} }) {
+    # add callbacks from each store.
+    foreach my $st (@stores) {
+        my ($event_name, $event_store) = @$st;
+        my $store = $event_store->{$event_name} or next;
+        foreach my $priority (keys %$store) {
         
             # create a group reference.
             my $group = [ $eo, $event_name, \@args];
             weaken($group->[0]);
             
             # add each callback.
-            foreach my $cb (@{ $eo->{$events}{$event_name}{$priority} }) {
-                push @collection, [ $priority, $group, $cb ];
-            }
-            
-        }
-        
-    }
-    
-    # add the package callbacks for this priority.
-    my $event_store = _event_store(blessed $eo);
-    if ($event_store && $event_store->{$event_name}) {
-        foreach my $priority (keys %{ $event_store->{$event_name} }) {
-        
-            # create a group reference.
-            my $group = [ $eo, $event_name, \@args];
-            weaken($group->[0]);
-            
-            # add each callback.
-            foreach my $cb (@{ $event_store->{$event_name}{$priority} }) {
-                push @collection, [ $priority, $group, $cb ];
-            }
-            
+            push @collection, [ $priority, $group, $_ ] foreach @{ $store->{$priority} };
+
         }
     }
     
@@ -760,10 +740,8 @@ See L</"Collection methods"> for more information.
 
 =head1 COMPATIBILITY
 
-Evented::Object versions 0.0 to 0.7 are entirely compatible - anything that worked in
-version 0.0 or even compies of Evented::Object before it was versioned also work in
-version 0.7; however, some recent changes break the compatibility with these previous
-versions in many cases.
+Although Evented::Object attempts to maintain compatibility for an extended period of
+time, a number of exceptions do exist. 
 
 =head2 Asynchronous improvements 1.0+
 
@@ -1354,6 +1332,16 @@ Returns the callback which called C<< $fire->stop >>.
  if ($fire->stopper) {
      say 'Fire was stopped by '.$fire->stopper;
  }
+ 
+=head2 $fire->exception
+
+If the event was fired with the `safe` option, it is possible that an exception occurred
+in one (or more if `fail_continue` enabled) callbacks. This method returns the last
+exception that occurred or `undef` if none did.
+
+ if (my $e = $fire->exception) {
+    say "Exception! $e";
+ }
 
 =head2 $fire->called($callback)
 
@@ -1547,7 +1535,7 @@ Alias for C<< $fire->object >>.
 
 L<Mitchell Cooper|https://github.com/cooper> <cooper@cpan.org>
 
-Copyright E<copy> 2011-2013. Released under BSD license.
+Copyright E<copy> 2011-2014. Released under BSD license.
 
 =over 4
 

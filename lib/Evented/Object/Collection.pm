@@ -12,7 +12,7 @@ use utf8;
 use 5.010;
 use Scalar::Util 'weaken';
 
-our $VERSION = '5.431';
+our $VERSION = '5.47';
 our $events  = $Evented::Object::events;
 our $props   = $Evented::Object::props;
 
@@ -66,11 +66,16 @@ sub fire {
     
     # if return_check is enabled, add a callback to be fired last that will
     # check the return values. this is basically hackery using a dummy object.
-    push @$callbacks, [ -inf, [ $dummy ||= Evented::Object->new, 'returnCheck', [] ], {
+    my $cb = {
         name   => 'eventedObject.returnCheck',
         caller => $caller,
         code   => \&_return_check
-    } ] if $collection->{return_check};
+    };
+    push @$callbacks, [
+        -inf,                                                       # [0] $priority
+        [ $dummy ||= Evented::Object->new, 'returnCheck', [] ],     # [1] $group
+        $cb                                                         # [2] $cb
+    ] if $collection->{return_check};
     
     # call them.
     return $collection->_call_callbacks($fire);
@@ -90,6 +95,22 @@ sub sort : method {
     while (@remaining) {
         my $item = shift @remaining;
         my $cb   = $item->[2];
+        
+        # fix for inexplicable bug.
+        if (!ref $cb || ref $cb ne 'HASH') {
+            
+            if (ref $cb eq 'ARRAY' && ref $cb->[0] eq 'HASH') {
+                $cb = $item->[2] = $cb->[0];
+            }
+                
+            # uh what?
+            else {
+                warn "callback($cb) is not a hashref!";
+                warn "callback($cb) array: @$cb" if ref $cb eq 'ARRAY';
+                next;
+            }
+            
+        }
         next if defined $done{ $cb->{name} };
                 
         # there is no defined priority, but there is before/after.
@@ -222,7 +243,8 @@ sub _call_callbacks {
         # stop if eval failed.
         if ($collection->{safe} and my $err = $@) {
             chomp $err;
-            $ef_props->{error}{ $cb->{name} } = $@;
+            $ef_props->{error}{ $cb->{name} } = $err;
+            $ef_props->{exception} = $err;
             $fire->stop($err) unless $collection->{fail_continue};
         }
         
@@ -252,7 +274,7 @@ sub _return_check {
     my %returns = %{ $fire->{$props}{return} };
     foreach my $cb_name (keys %returns) {
         next if $returns{$cb_name};
-        return $fire->stop;
+        return $fire->stop("$cb_name returned false with return_check enabled");
     }
     return 1;
 }

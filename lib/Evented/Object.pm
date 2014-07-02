@@ -32,7 +32,7 @@ use Evented::Object::Collection;
 
 # always using 2 decimals now for CPAN releases.
 # change other packages too.
-our $VERSION = '5.48';
+our $VERSION = '5.50';
 
 # create a new evented object.
 sub new {
@@ -189,7 +189,7 @@ sub prepare_event {
 
 # prepare a fire of one or more events.
 sub prepare_together {
-    my ($obj, @collection);
+    my ($obj, %collection);
     foreach my $set (@_) {
         my $eo;
 
@@ -219,11 +219,12 @@ sub prepare_together {
         }
         
         # add to the collection.
-        push @collection, @{ _get_callbacks($eo, $event_name, @args) };
+        my %mini_collection = %{ _get_callbacks($eo, $event_name, @args) };
+        @collection{ keys %mini_collection } = values %mini_collection;
         
     }
 
-    return bless { pending => \@collection }, 'Evented::Object::Collection';
+    return bless { pending => \%collection }, 'Evented::Object::Collection';
 }
 
 #####################
@@ -375,7 +376,7 @@ sub _get_callback_named {
 # internal use only.
 sub _get_callbacks {
     my ($eo, $event_name, @args) = @_;
-    my @collection;
+    my %collection;
     
     # start out with two stores: the object and the package.
     my @stores = (
@@ -421,12 +422,13 @@ sub _get_callbacks {
             weaken($group->[0]);
             
             # add each callback.
-            push @collection, [ $priority, $group, $_ ] foreach @{ $store->{$priority} };
+            $collection{ $_->{name} } = [ $priority, $group, $_ ]
+                foreach @{ $store->{$priority} };
 
         }
     }
-    
-    return \@collection;
+
+    return \%collection;
 }
 
 # fire a class monitor event.
@@ -850,11 +852,11 @@ B<priority>: a numerical priority of the callback.
 
 =item *
 
-B<before>: the name of a callback to precede.
+B<before>: the name of a callback or an array reference of callback names to precede.
  
 =item *
 
-B<after>: the name of a callback to succeed.
+B<after>: the name of a callback or an array reference of callback names to succeed.
  
 =item *
 
@@ -875,9 +877,18 @@ B<no_fire_obj>: if true, the fire object will not be prepended to the argument l
 Note: the order of objects will always be C<$eo>, C<$fire>, C<@args>, regardless of
 omissions. By default, the argument list is C<$fire>, C<@args>.
 
-Note: only one of C<priority>, C<before>, and C<after> will be respected. Although more
-complex prioritization is in the works, Evented::Object is not currently capable of
-resolving priority conflicts with before and after.
+Note: In Evented::Object 5.5+, you may have any number of C<before> and any number of
+C<after> options for any given callback. For instance, one callback may specify
+to be before 'b' and 'c' but after 'a'. Evented::Object will resolve these priorities to
+its best ability.
+
+In the case that the priorities can not be resolved (for instance, if a callback asks to
+be before 'a' and after 'b' while 'b' has already asked to be before 'a'), the behavior of
+Evented::Object is not guaranteed to be consistent. In other words, please do your best to
+not request impossible priorities.
+
+In any case, C<before> and C<after> options are completely ignored when a C<priority> is
+explicitly specified.
 
 =head2 $eo->register_callbacks(@events)
 
